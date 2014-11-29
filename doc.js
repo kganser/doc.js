@@ -1,6 +1,7 @@
 // Copyright 2014, Klaus Ganser <http://kganser.com>
 // MIT Licensed, with this copyright and permission notice
 // <http://opensource.org/licenses/MIT>
+
 var doc = function() {
   var parser = function() {
     var identity = function(o) { return o; };
