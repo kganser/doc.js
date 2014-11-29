@@ -407,7 +407,7 @@ var doc = function() {
     ]
   }, 'spec', tokens);
   
-  /** docs: {
+  /** doc: {
         generate: function(code:string) -> [Block, ...],
         stringify: function(code:string, breakLimit=1:number) -> string,
         stringifySpec: function(spec:Value|Type, breakLimit=1:number, depth=0:number, type=false:boolean) -> string
