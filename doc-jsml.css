@@ -28,7 +28,7 @@
   cursor: pointer;
   display: inline-block;
   position: relative;
-  margin: -2px 2px -3px;
+  margin: -2px 0 -3px;
   padding: 2px 3px 3px;
   background: white;
   box-shadow: 0 0 3px rgba(0, 0, 0, .6);
@@ -36,7 +36,7 @@
 }
 .docjs-args .docjs-args > .docjs-value > .docjs-named-value:hover,
 .docjs-args .docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover {
-  margin: 2px 2px 1px;
+  margin: 2px 0 1px;
 }
 .docjs-args > .docjs-value > .docjs-named-value > .docjs-name,
 .docjs-args > .docjs-values > .docjs-value > .docjs-named-value > .docjs-name {

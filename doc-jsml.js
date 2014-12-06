@@ -13,7 +13,7 @@ doc = function(doc) {
       if (Array.isArray(node))
         return {span: {className: 'docjs-types', children: node.map(function(node) { return format(node, true); })}};
       type = typeof node == 'string' ? node : Object.keys(node)[0];
-      return {span: {className: 'docjs-type docjs-type-'+type, children: {span: typeof node == 'string' ? node : {className: 'docjs-'+type, children: [
+      return {span: {className: 'docjs-type docjs-type-'+type, children: {span: node == type ? node : {className: 'docjs-'+type, children: [
         type == 'function' ? [
           node.function.args && {span: {className: 'docjs-args', children: format(node.function.args)}},
           node.function.returns && {span: {className: 'docjs-returns', children: format(node.function.returns, true)}}
