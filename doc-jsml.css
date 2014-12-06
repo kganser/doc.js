@@ -1,0 +1,124 @@
+.docjs {
+  position: relative;
+}
+.docjs-source {
+  font-size: 11px;
+  position: absolute;
+  right: 0;
+  top: -1.2em;
+}
+.docjs-spec {
+  background: white;
+  padding: 4px 8px 5px;
+}
+.docjs-type-function,
+.docjs-type-number,
+.docjs-type-boolean,
+.docjs-type-string {
+  color: #008;
+}
+.docjs-named-value > .docjs-type:before,
+.docjs-named-value > .docjs-types:before {
+  content: ": ";
+  color: black;
+  color: initial;
+}
+.docjs-args > .docjs-value > .docjs-named-value:hover,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover {
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  margin: -2px 2px -3px;
+  padding: 2px 3px 3px;
+  background: white;
+  box-shadow: 0 0 3px rgba(0, 0, 0, .6);
+  border-radius: 3px;
+}
+.docjs-args .docjs-args > .docjs-value > .docjs-named-value:hover,
+.docjs-args .docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover {
+  margin: 2px 2px 1px;
+}
+.docjs-args > .docjs-value > .docjs-named-value > .docjs-name,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value > .docjs-name {
+  border-bottom: dotted 1px #999;
+}
+.docjs-args > .docjs-value > .docjs-named-value:hover > .docjs-name,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover > .docjs-name {
+  border-bottom: none;
+}
+.docjs-args > .docjs-value > .docjs-named-value > .docjs-type,
+.docjs-args > .docjs-value > .docjs-named-value > .docjs-types,
+.docjs-args > .docjs-value > .docjs-named-value > .docjs-default,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value > .docjs-type,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value > .docjs-types,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value > .docjs-default {
+  display: none;
+}
+.docjs-args > .docjs-value > .docjs-named-value:hover > .docjs-type,
+.docjs-args > .docjs-value > .docjs-named-value:hover > .docjs-types,
+.docjs-args > .docjs-value > .docjs-named-value:hover > .docjs-default,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover > .docjs-type,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover > .docjs-types,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover > .docjs-default {
+  display: inline;
+}
+.docjs-default {
+  color: #066;
+}
+.docjs-default:before {
+  content: "=";
+  color: black;
+  color: initial;
+}
+.docjs-function:before {
+  content: "function";
+}
+.docjs-args, .docjs-returns {
+  color: black;
+  color: initial;
+}
+.docjs-args:before {
+  content: "(";
+}
+.docjs-args:after {
+  content: ")";
+}
+.docjs-returns:before {
+  content: " → ";
+}
+.docjs-object:before {
+  content: "{";
+}
+.docjs-object:after {
+  content: "}";
+}
+.docjs-array:before {
+  content: "[";
+}
+.docjs-array:after {
+  content: "]";
+}
+.docjs-values > span:after {
+  content: ", ";
+}
+.docjs-values > span:last-child:after {
+  content: none;
+}
+.docjs-object .docjs-value {
+  display: block;
+  padding-left: 1.2em;
+}
+.docjs-args .docjs-value,
+.docjs-array .docjs-value,
+.docjs-object .docjs-object .docjs-value {
+  display: inline;
+  padding: 0;
+}
+.docjs-types > span:after {
+  content: "|";
+  color: black;
+  color: initial;
+}
+.docjs-types > span:last-child:after {
+  content: none;
+}
