@@ -3,366 +3,137 @@
 // <http://opensource.org/licenses/MIT>
 
 var doc = function() {
-  var parser = function() {
-    var identity = function(o) { return o; };
-    var unique = function(symbol, symbols, obj) {
-      while (symbols.hasOwnProperty(symbol)) symbol += "'";
-      if (obj) obj[symbol] = 1;
-      return obj || symbol;
-    };
-    var merge = function(to, from) {
-      var added;
-      Object.keys(from).forEach(function(key) {
-        if (!to.hasOwnProperty(key))
-          added = to[key] = 1;
-      });
-      return added;
-    };
-    var stringify = function(item) {
-      return item[0]+' → '+item[1].map(function(symbol, i) {
-        return i != item[2] ? i ? ' '+symbol : symbol : '•'+symbol;
-      }).join('')+(item[2] == item[1].length ? '•' : '');
-    };
-    return {
-      generate: function(grammar, start, tokens) {
-        var symbols = {}, states = [], tokens_ = {}, grammar_ = {}, nonterminals = Object.keys(grammar);
-        
-        Object.keys(tokens || {}).forEach(function(token) {
-          tokens_[token] = new RegExp(tokens[token].source.replace(/^\^?/, '^(?:')+')', tokens[token].ignoreCase ? 'i' : '');
-        });
-        tokens = tokens_;
-        
-        nonterminals.forEach(function(nonterminal) {
-          var productions = [], production = [];
-          grammar[nonterminal].forEach(function(elem) {
-            var type = typeof elem;
-            if (type == 'string') {
-              production.push(elem);
-            } else {
-              productions.push([production, type == 'function' ? elem : function(values) {
-                return function copy(elem) {
-                  var type = typeof elem;
-                  if (type != 'object' || !elem)
-                    return type == 'number' && elem >= 0 && elem < values.length && !(elem % 1)
-                      ? values[elem] : elem;
-                  var value = {};
-                  if (Array.isArray(elem)) {
-                    value = [];
-                    elem.forEach(function(elem) {
-                      value = value.concat(Array.isArray(elem = copy(elem)) ? elem : [elem]);
-                    });
-                  } else {
-                    Object.keys(elem).forEach(function(key) {
-                      value[key] = copy(elem[key]);
-                    });
-                  }
-                  return value;
-                }(elem);
-              }]);
-              production = [];
-            }
-          });
-          grammar_[nonterminal] = productions;
-        });
-        grammar = grammar_;
-        
-        if (Array.isArray(start)) {
-        
-          start[0].forEach(function(symbol) { symbols[symbol] = 1; });
-          (states = start.slice(1).map(function(state) {
-            return {transitions: {}, reductions: {}, raw: state};
-          })).forEach(function(state, i) {
-            var t = Array.isArray(state.raw) ? state.raw[0] : state.raw,
-                r = Array.isArray(state.raw) ? state.raw[1] : {};
-            Object.keys(t).forEach(function(symbol) {
-              state.transitions[start[0][symbol-1]] = states[t[symbol]];
-            });
-            Object.keys(r).forEach(function(symbol) {
-              var value = r[symbol],
-                  nonterminal = start[0][Array.isArray(value) ? value[0]-1 : value-1],
-                  production = nonterminal ? grammar[nonterminal][Array.isArray(value) ? value[1] : 0] : [[Object.keys(states[0].transitions)[0]], function(e) { return e; }];
-              state.reductions[+symbol ? start[0][symbol-1] : ''] = [nonterminal, production[0], null, null, production[1] || identity];
-            });
-            delete state.raw;
-          });
-        
-        } else {
-        
-          var firsts = {}, oldStart = start, done;
-          
-          var getFirsts = function(production, start) {
-            var symbol, current = {'': 1};
-            for (var i = start || 0; (symbol = production[i]) && current.hasOwnProperty(''); i++) {
-              delete current[''];
-              if (grammar.hasOwnProperty(symbol)) {
-                merge(current, firsts[symbol]);
-              } else {
-                current[symbol] = 1;
-              }
-            }
-            return current;
-          };
-          
-          // validate, prepare grammar
-          nonterminals.forEach(function(nonterminal) {
-            firsts[nonterminal] = {};
-            symbols[nonterminal] = 1;
-            grammar[nonterminal].forEach(function(production) {
-              for (var symbol, i = 0; i < production[0].length; i++) {
-                if (symbol = production[0][i]) {
-                  symbols[symbol] = 1;
-                } else { // empty strings are reserved as EOF token
-                  production[0].splice(i--, 1);
-                }
-              }
-            });
-          });
-          
-          if (!grammar.hasOwnProperty(oldStart)) throw 'Start symbol does not appear in grammar';
-          grammar[start = unique(oldStart, symbols)] = [[[oldStart], function(e) { return e; }]];
-          
-          // compute first sets
-          do {
-            done = true;
-            nonterminals.forEach(function(nonterminal) {
-              grammar[nonterminal].forEach(function(production) {
-                if (merge(firsts[nonterminal], getFirsts(production[0])))
-                  done = false;
-              });
-            });
-          } while (!done);
-          
-          //firsts.forEach(function(n) { console.log('first', n, Object.keys(firsts[n])); });
-          
-          // adds any nonkernel productions to complete closure,
-          // as well as all shifting transition symbols
-          var close = function(state) {
-            if (!state.transitions) state.transitions = {};
-            state.reductions = {};
-            do {
-              done = true;
-              state.items.forEach(function(item) {
-                var lookaheads = {}, next = item[1][item[2]];
-                if (next && !state.transitions[next]) state.transitions[next] = 0;
-                if (!next || !grammar.hasOwnProperty(next)) return;
-                if (Object.keys(item[3]).length && (lookaheads = getFirsts(item[1], item[2]+1)).hasOwnProperty('')) {
-                  delete lookaheads[''];
-                  merge(lookaheads, item[3]);
-                }
-                grammar[next].forEach(function(production) {
-                  var last;
-                  if (state.items.some(function(item) {
-                    last = item;
-                    return item[1] == production[0] && !item[2];
-                  })) {
-                    if (merge(last[3], lookaheads))
-                      done = false;
-                  } else {
-                    state.items.push([next, production[0], 0, lookaheads, production[1] || identity]);
-                    done = false;
-                  }
-                });
-              });
-            } while (!done);
-            return state;
-          };
-          
-          // generate LR(0) states
-          states.push(close({items: [[start, grammar[start][0][0], 0, {}, grammar[start][0][1] || identity]]}));
-          
-          do {
-            done = true;
-            states.forEach(function(state) {
-              Object.keys(state.transitions).forEach(function(symbol) {
-                // find all productions in state with `symbol` as
-                // their next symbol and advance index; these
-                // become kernel of another state, which we add
-                // to `states` if it doesn't already exist
-                var candidate = {items: []};
-                state.items.forEach(function(item) {
-                  var next = item[1][item[2]];
-                  if (next == symbol)
-                    candidate.items.push([item[0], item[1], item[2]+1, {}, item[4]]);
-                });
-                
-                //console.log('state candidate\n'+candidate.items.map(stringify).join('\n'));
-                
-                if (!states.some(function(state) {
-                  var compared = 0;
-                  return !state.items.some(function(item) {
-                    if (!item[2] && item[0] != start) return;
-                    compared++;
-                    return !candidate.items.some(function(i) {
-                      return item[1] == i[1] && item[2] == i[2];
-                    });// && !console.log(stringify(item)+' not in new state') || console.log(stringify(item)+' found in new state');
-                  }) && compared == candidate.items.length && (candidate = state);
-                })) {
-                  states.push(close(candidate));
-                  done = false;
-                }
-                state.transitions[symbol] = candidate;
-              });
-            });
-          } while (!done);
-          
-          // generate lookaheads for LR(0) states
-          var lookaheads = [], foo = unique('#', symbols, {});
-          states[0].items[0][3] = {'': 1};
-          
-          states.forEach(function(state) {
-            state.items.forEach(function(item) {
-              if (!item[2] && item[0] != start) return;
-              close({items: [item.slice(0, 3).concat([foo])]}).items.forEach(function(i) {
-                var next = i[1][i[2]];
-                if (next) {
-                  state.transitions[next].items.some(function(j) {
-                    return i[1] == j[1] && i[2]+1 == j[2] && (next = j);
-                  });
-                  Object.keys(i[3]).forEach(function(symbol) {
-                    if (!foo.hasOwnProperty(symbol)) {
-                      next[3][symbol] = 1;
-                    } else if (item != next) {
-                      lookaheads.push([item[3], next[3]]);
-                    }
-                  });
-                }
-              });
-            });
-          });
-          
-          do {
-            done = true;
-            lookaheads.forEach(function(pair) {
-              if (merge(pair[1], pair[0]))
-                done = false;
-            });
-          } while (!done);
-          
-          states.forEach(close);
-          
-          /*console.log(states.length+' states:\n\n'+states.map(function(state) {
-            return state.items.map(stringify).join('\n');
-          }).join('\n\n'));*/
-          
-          // detect shift-reduce, reduce-reduce conflicts
-          states.forEach(function(state) {
-            state.items.forEach(function(item) {
-              var next = item[1][item[2]];
-              if (!next) {
-                Object.keys(item[3]).forEach(function(next) {
-                  if (state.transitions.hasOwnProperty(next)) throw 'Shift-reduce conflict on input "'+next+'"\n  '+stringify(state.transitions[next].items[0])+' (shift)\n  '+stringify(item)+' (reduce)';
-                  if (state.reductions.hasOwnProperty(next)) throw 'Reduce-reduce conflict on input "'+next+'"\n  '+stringify(state.reductions[next])+'\n  '+stringify(item);
-                  state.reductions[next] = item;
-                });
-              } else if (state.reductions.hasOwnProperty(next)) {
-                throw 'Shift-reduce conflict on input "'+next+'"\n  '+stringify(item)+' (shift)\n  '+stringify(state.reductions[next])+' (reduce)';
-              }
-            });
-          });
-        }
-        
-        return function(string) {
-        
-          if (string == null) {
-            var s = Object.keys(symbols);
-            return [s].concat(states.map(function(state) {
-              var transitions = {},
-                  reductions = {};
-              Object.keys(state.transitions).forEach(function(symbol) {
-                transitions[s.indexOf(symbol)+1] = states.indexOf(state.transitions[symbol]);
-              });
-              Object.keys(state.reductions).forEach(function(symbol) {
-                var item = state.reductions[symbol],
-                    nonterminal = s.indexOf(item[0])+1,
-                    production;
-                if (nonterminal) grammar[s[nonterminal-1]].some(function(rule, i) {
-                  return rule[0] == item[1] && (production = i);
-                });
-                reductions[s.indexOf(symbol)+1] = production ? [nonterminal, production] : nonterminal;
-              });
-              return Object.keys(reductions).length ? [transitions, reductions] : transitions;
-            }));
-          }
-        
-          var token, match, ignore = tokens[''], substring = string, values = [], stack = [], state = states[0], i = 0;
-          
-          while (state) {
-            //console.log('now at:\n'+state.items.map(stringify).join('\n'));
-            
-            token = undefined;
-            
-            if (ignore && (match = ignore.exec(substring))) {
-              substring = substring.substr(match[0].length);
-              i += match[0].length;
-              continue;
-            }
-            
-            (function(process) {
-              Object.keys(state.transitions).forEach(process(false));
-              Object.keys(state.reductions).forEach(process(true));
-            })(function(reduce) {
-              return function(symbol) {
-                //console.log('checking symbol '+symbol);
-                if (symbol && tokens.hasOwnProperty(symbol)) {
-                  if ((match = tokens[symbol].exec(substring)) && (!token || match[0].length > token.value.length))
-                    token = {symbol: symbol, value: match[0], reduce: reduce};
-                } else if (!grammar.hasOwnProperty(symbol) && substring.substr(0, symbol.length) == symbol && (!token || symbol.length >= token.value.length) && (symbol || i == string.length)) {
-                  token = {symbol: symbol, value: symbol, reduce: reduce};
-                }
-              };
-            });
-            
-            if (!token) {
-              var before = string.substr(0, i),
-                  newlines = before.match(/\n/g),
-                  lastNewline = before.lastIndexOf('\n') + 1;
-              throw {
-                message: i == string.length ? 'Unexpected end of input' : 'Unexpected token',
-                index: i,
-                line: string.substring(lastNewline, (string+'\n').indexOf('\n', lastNewline)),
-                row: newlines ? newlines.length : 0,
-                column: i - lastNewline,
-                toString: function() {
-                  return [this.message, this.line.replace(/\t/g, ' '), new Array(this.column+1).join(' ')+'^'].join('\n');
-                }
-              };
-            }
-            
-            if (token.reduce) {
-              var args = [],
-                  reduction = state.reductions[token.symbol];
-              //console.log('reducing '+stringify(reduction));
-              for (var j = reduction[1].length; j; j--) {
-                state = stack.pop();
-                args.unshift(values.pop());
-              }
-              stack.push(state);
-              state = state.transitions[reduction[0]];
-              values.push(reduction[4](args));
-            } else {
-              //console.log('shifting '+token.symbol);
-              stack.push(state);
-              values.push(token.value);
-              state = state.transitions[token.symbol];
-              substring = substring.substr(token.value.length);
-              i += token.value.length;
-            }
-          }
-          
-          return values.pop().pop();
-        };
-      }
-    };
-  }();
-
-  var tokens = {
+  var self, tokens = {
     id: /[a-zA-Z_$][a-zA-Z0-9_$]*/,
     number: /[0-9]+/,
     string: /'[^']*'|"[^"]*"/,
     code: /`[^`]+`/,
     '': /\s+/
   };
-  var self, parse = parser.generate({
+  var parse = function(grammar, start, tokens) {
+    var symbols = {}, states = [], tokens_ = {}, grammar_ = {}, nonterminals = Object.keys(grammar);
+    
+    Object.keys(tokens || {}).forEach(function(token) {
+      tokens_[token] = new RegExp(tokens[token].source.replace(/^\^?/, '^(?:')+')', tokens[token].ignoreCase ? 'i' : '');
+    });
+    tokens = tokens_;
+    
+    nonterminals.forEach(function(nonterminal) {
+      var productions = [], production = [];
+      grammar[nonterminal].forEach(function(elem) {
+        var type = typeof elem;
+        if (type == 'string') {
+          production.push(elem);
+        } else {
+          productions.push([production, type == 'function' ? elem : function(values) {
+            return function copy(elem) {
+              var type = typeof elem;
+              if (type != 'object' || !elem)
+                return type == 'number' && elem >= 0 && elem < values.length && !(elem % 1)
+                  ? values[elem] : elem;
+              var value = {};
+              if (Array.isArray(elem)) {
+                value = [];
+                elem.forEach(function(elem) {
+                  value = value.concat(Array.isArray(elem = copy(elem)) ? elem : [elem]);
+                });
+              } else {
+                Object.keys(elem).forEach(function(key) {
+                  value[key] = copy(elem[key]);
+                });
+              }
+              return value;
+            }(elem);
+          }]);
+          production = [];
+        }
+      });
+      grammar_[nonterminal] = productions;
+    });
+    grammar = grammar_;
+    
+    start[0].forEach(function(symbol) { symbols[symbol] = 1; });
+    (states = start.slice(1).map(function(state) {
+      return {transitions: {}, reductions: {}, raw: state};
+    })).forEach(function(state, i) {
+      var t = Array.isArray(state.raw) ? state.raw[0] : state.raw,
+          r = Array.isArray(state.raw) ? state.raw[1] : {};
+      Object.keys(t).forEach(function(symbol) {
+        state.transitions[start[0][symbol-1]] = states[t[symbol]];
+      });
+      Object.keys(r).forEach(function(symbol) {
+        var value = r[symbol],
+            nonterminal = start[0][Array.isArray(value) ? value[0]-1 : value-1],
+            production = nonterminal ? grammar[nonterminal][Array.isArray(value) ? value[1] : 0] : [[Object.keys(states[0].transitions)[0]], function(e) { return e; }];
+        state.reductions[+symbol ? start[0][symbol-1] : ''] = [nonterminal, production[0], null, null, production[1] || function(o) { return o; }];
+      });
+      delete state.raw;
+    });
+    
+    return function(string) {
+      var token, match, ignore = tokens[''], substring = string, values = [], stack = [], state = states[0], i = 0;
+      
+      while (state) {
+        token = undefined;
+        
+        if (ignore && (match = ignore.exec(substring))) {
+          substring = substring.substr(match[0].length);
+          i += match[0].length;
+          continue;
+        }
+        
+        (function(process) {
+          Object.keys(state.transitions).forEach(process(false));
+          Object.keys(state.reductions).forEach(process(true));
+        })(function(reduce) {
+          return function(symbol) {
+            if (symbol && tokens.hasOwnProperty(symbol)) {
+              if ((match = tokens[symbol].exec(substring)) && (!token || match[0].length > token.value.length))
+                token = {symbol: symbol, value: match[0], reduce: reduce};
+            } else if (!grammar.hasOwnProperty(symbol) && substring.substr(0, symbol.length) == symbol && (!token || symbol.length >= token.value.length) && (symbol || i == string.length)) {
+              token = {symbol: symbol, value: symbol, reduce: reduce};
+            }
+          };
+        });
+        
+        if (!token) {
+          var before = string.substr(0, i),
+              newlines = before.match(/\n/g),
+              lastNewline = before.lastIndexOf('\n') + 1;
+          throw {
+            message: i == string.length ? 'Unexpected end of input' : 'Unexpected token',
+            index: i,
+            line: string.substring(lastNewline, (string+'\n').indexOf('\n', lastNewline)),
+            row: newlines ? newlines.length : 0,
+            column: i - lastNewline,
+            toString: function() {
+              return [this.message, this.line.replace(/\t/g, ' '), new Array(this.column+1).join(' ')+'^'].join('\n');
+            }
+          };
+        }
+        
+        if (token.reduce) {
+          var args = [],
+              reduction = state.reductions[token.symbol];
+          for (var j = reduction[1].length; j; j--) {
+            state = stack.pop();
+            args.unshift(values.pop());
+          }
+          stack.push(state);
+          state = state.transitions[reduction[0]];
+          values.push(reduction[4](args));
+        } else {
+          stack.push(state);
+          values.push(token.value);
+          state = state.transitions[token.symbol];
+          substring = substring.substr(token.value.length);
+          i += token.value.length;
+        }
+      }
+      
+      return values.pop().pop();
+    };
+  }({
     spec: [
       'id', ':', 'types', {name: 0, type: 2}
     ],
@@ -405,18 +176,35 @@ var doc = function() {
       'number', 0,
       'code', 0
     ]
-  }, 'spec', tokens);
+  }, [
+    ['spec','id',':','types','named_value','=','literal','...','named_values',',','value','values','type','function',
+    '(',')','{','}','[',']','|','->','null','undefined','true','false','string','number','code'],{1:1,2:2},[{},{0:0}],
+    {3:3},{2:7,4:4,13:5,14:6,17:8,19:9},[{},{0:1,10:1,16:1,18:1,20:1}],[{21:10},{0:[4,3],10:[4,3],16:[4,3],18:[4,3],
+    20:[4,3]}],[{15:12,22:11},{0:[13,1],10:[13,1],16:[13,1],18:[13,1],20:[13,1],21:[13,1]}],[{},{0:13,10:13,16:13,
+    18:13,20:13,21:13}],{1:16,2:15,5:14,8:17,9:13},{1:16,2:22,4:21,5:20,8:17,11:19,12:18,13:5,14:6,17:8,19:9},{2:7,
+    4:23,13:5,14:6,17:8,19:9},{2:7,4:24,13:5,14:6,17:8,19:9},{1:16,2:22,4:21,5:20,8:17,11:19,12:25,13:5,14:6,17:8,
+    19:9},{18:26},[{10:27},{18:[9,1]}],{3:3,6:28},[{},{10:[5,1],16:[5,1],18:[5,1],20:[5,1]}],[{},{10:[5,2],16:[5,2],
+    18:[5,2],20:[5,2]}],{20:29},[{10:30},{16:[12,1],20:[12,1]}],[{},{10:11,16:11,20:11}],[{},{10:[11,1],16:[11,1],
+    20:[11,1]}],[{3:3,6:28},{10:13,16:13,20:13,21:13}],[{},{0:4,10:4,16:4,18:4,20:4}],[{},{0:[4,1],10:[4,1],16:[4,1],
+    18:[4,1],20:[4,1]}],{16:31},[{},{0:[13,3],10:[13,3],16:[13,3],18:[13,3],20:[13,3],21:[13,3]}],{1:16,2:15,5:14,8:17,
+    9:32},{7:33,23:34,24:35,25:36,26:37,27:38,28:39,29:40},[{},{0:[13,4],10:[13,4],16:[13,4],18:[13,4],20:[13,4],
+    21:[13,4]}],{1:16,2:22,4:21,5:20,8:17,11:19,12:41,13:5,14:6,17:8,19:9},[{22:42},{0:[13,2],10:[13,2],16:[13,2],
+    18:[13,2],20:[13,2],21:[13,2]}],[{},{18:9}],{3:43},[{},{3:7}],[{},{3:[7,1]}],[{},{3:[7,2]}],[{},{3:[7,3]}],[{},
+    {3:[7,4]}],[{},{3:[7,5]}],[{},{3:[7,6]}],[{},{16:12,20:12}],{2:7,4:44,13:5,14:6,17:8,19:9},{2:7,4:45,13:5,14:6,
+    17:8,19:9},[{},{0:[4,2],10:[4,2],16:[4,2],18:[4,2],20:[4,2]}],[{},{10:5,16:5,18:5,20:5}]
+  ], tokens);
   
   /** doc: {
         generate: function(code:string) -> [Block, ...],
         stringify: function(code:string, breakLimit=1:number) -> string,
-        stringifySpec: function(spec:Value|Type, breakLimit=1:number, depth=0:number, type=false:boolean) -> string
+        stringifySpec: function(spec:Value|Type, breakLimit=1:number, depth=0:number, type=false:boolean) -> string,
+        parseFile: function(path:string, callback:function([Block, ...]))
       }
       
       Documentation is parsed from comments in `code` beginning with `/**`, which are split into blocks separated by
       one or more empty lines. The first block is parsed using the doc spec grammar below. If the parse succeeds, the
-      result is returned in `spec`. Otherwise, `spec` is null, `error` is set to the `parser` module's `ParseError`,
-      and the block is parsed as `text` along with subsequent blocks.
+      result is returned in `spec`. Otherwise, `spec` is null, `error` is set to jscc's `ParseError`, and the block is
+      parsed as `text` along with subsequent blocks.
       
      `        <spec> ::= <id> ':' <types>
        <named_value> ::= <id> '=' <literal> ':' <types>
@@ -447,7 +235,10 @@ var doc = function() {
       
       `stringify` returns a plain-text version of the doc structure returned by `generate`, and `stringifySpec` does
       the same for the `spec` structure within `Block`. `breakLimit` sets the `depth` at which nested object properties
-      stop being separated by line breaks. */
+      stop being separated by line breaks.
+
+      `parseFile` is a convenience method that makes an ajax request for the file at `path`, calls `generate` on the
+      response text, and issues `callback` with the result. */
       
   /** Block: {spec:Value|null, error:ParseError|undefined, text:[[string|{code:string}, ...]|{pre:string}, ...]} */
   /** Value: [Value, ...]|string|{name:string|undefined, default:string|undefined, type:Type} */
