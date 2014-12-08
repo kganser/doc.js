@@ -34,8 +34,10 @@
   box-shadow: 0 0 3px rgba(0, 0, 0, .6);
   border-radius: 3px;
 }
-.docjs-args .docjs-args > .docjs-value > .docjs-named-value:hover,
-.docjs-args .docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover {
+.docjs-args > .docjs-value > .docjs-named-value:hover .docjs-args > .docjs-value > .docjs-named-value:hover,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover .docjs-args > .docjs-value > .docjs-named-value:hover,
+.docjs-args > .docjs-value > .docjs-named-value:hover .docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover,
+.docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover .docjs-args > .docjs-values > .docjs-value > .docjs-named-value:hover {
   margin: 2px 0 1px;
 }
 .docjs-args > .docjs-value > .docjs-named-value > .docjs-name,
