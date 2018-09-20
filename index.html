@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <title>doc.js</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Doc.js is a simple inline documentation syntax and parser for javascript.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="canonical" href="https://docjs.kganser.com">
+    <link rel="stylesheet" href="//kganser.com/css/common.css">
+    <link rel="stylesheet" href="//kganser.com/css/prettify.css">
+    <link rel="stylesheet" href="doc-jsml.css">
+  </head>
+  <body>
+    <a href="//kganser.com">kganser.com</a>
+    <h1>doc.js</h1>
+    <p>Doc.js is a simple inline documentation parser written in javascript for javascript. It uses <a href="https://jscc.kganser.com">jscc</a> to parse a custom javascript spec syntax from comments in source code.
+    <h2>Installation</h2>
+    <p>Use the <code>doc-jsml</code> wrapper script and stylesheet to render documentation in-browser from a script document requested via ajax. This script uses <a href="https://jsml.kganser.com">jsml</a> to render json output from the <a href="#library">doc.js library</a> script as DOM.</p>
+    <pre class="prettyprint">&lt;!-- in head tag -->
+&lt;link rel="stylesheet" href="//docjs.kganser.com/doc-jsml.css">
+
+&lt;div id="docs">&lt;/div>
+
+&lt;!-- before closing body tag -->
+&lt;script src="//jsml.kganser.com/jsml.js">&lt;/script>
+&lt;script src="//docjs.kganser.com/doc.js">&lt;/script>
+&lt;script src="//docjs.kganser.com/doc-jsml.js">&lt;/script>
+&lt;script>
+  doc('/doc-jsml.js', document.getElementById('docs'));
+&lt;/script></pre>
+    <div id="doc-jsml" style="padding: 1em; border: solid 1px #ddd"></div>
+    <h2 id="library">Library</h2>
+    <div id="doc"></div>
+    <a class="git-banner" href="//github.com/kganser/doc.js"></a>
+    <script src="//kganser.com/js/common.js"></script>
+    <script src="//kganser.com/js/prettify.js"></script>
+    <script src="//jsml.kganser.com/jsml.js"></script>
+    <script src="doc.js"></script>
+    <script src="doc-jsml.js"></script>
+    <script>
+      doc('doc-jsml.js', $('doc-jsml'));
+      doc('doc.js', $('doc'));
+    </script>
+  </body>
+</html>
